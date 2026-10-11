@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800;900&family=Inter:wght@400;500;600;700&display=block" rel="stylesheet">
+<style>
+  :root {
+    --bg: #07060b; --bg2: #0e0b16; --purple: #8b3dff; --purple2: #a66bff; --violet: #b98aff;
+    --silver: #c9cad2; --muted: #9a97a8;
+    --display: "Orbitron", "Segoe UI", sans-serif; --body: "Inter", "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100vw; height: 100vh; overflow: hidden; background: transparent; }
+  body { font-family: var(--body); color: #fff; }
+  .scene { position: relative; width: 100vw; height: 100vh; overflow: hidden; background: var(--bg); }
+  .scene::before { /* lab grid */
+    content: ""; position: absolute; inset: 0;
+    background:
+      linear-gradient(rgba(167,139,250,.07) 1px, transparent 1px) 0 0 / 4vh 4vh,
+      linear-gradient(90deg, rgba(167,139,250,.07) 1px, transparent 1px) 0 0 / 4vh 4vh;
+    mask-image: radial-gradient(ellipse 80% 90% at 70% 50%, #000 20%, transparent 75%);
+  }
+  .glow { position: absolute; border-radius: 50%; filter: blur(6vh); pointer-events: none; }
+  .bubble { position: absolute; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #d9c2ff, #8b3dff 55%, #4a1a9a); box-shadow: 0 0 2vh rgba(139,61,255,.7); opacity: .85; }
+  .silver { background: linear-gradient(180deg, #fff 0%, #dcdde3 45%, #8e909c 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .purple { background: linear-gradient(180deg, #d2b3ff 0%, #8b3dff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .eyebrow { font-family: var(--display); color: var(--purple2); letter-spacing: .4em; text-transform: uppercase; font-weight: 700; }
+  .chip { display: inline-flex; align-items: center; gap: .6em; border: 1px solid rgba(166,107,255,.45); background: rgba(139,61,255,.12); color: #e6dcff; border-radius: .5em; font-weight: 600; letter-spacing: .06em; padding: .55em 1em; }
+  .rule { height: 2px; background: linear-gradient(90deg, transparent, var(--purple), transparent); }
+  img.mark { filter: drop-shadow(0 0 3vh rgba(139,61,255,.55)); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const q = new URLSearchParams(location.search);
+const d = q.get("d");
+const T = q.get("t") || "";
+const S = q.get("s") || "";
+const I = q.get("i") || "";
+const root = document.getElementById("root");
+const MARK = "mark-transparent.png", WORD = "wordmark-transparent.png", FULL = "logo-full-transparent.png";
+
+const icons = {
+  bolt: '<path d="M13 2 3 14h9l-1 8 10-12h-9z"/>',
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  flask: '<path d="M10 2v6L4.5 18a2.5 2.5 0 0 0 2.2 3.7h10.6a2.5 2.5 0 0 0 2.2-3.7L14 8V2"/><path d="M8.5 2h7"/><path d="M7 15h10"/>',
+  chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
+  key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.8-9.8"/><path d="m16 7 3 3"/><path d="m19 4 2 2"/>',
+  briefcase: '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><path d="M2 13h20"/>',
+  vault: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="4.5"/><path d="M12 7.5V9M12 15v1.5M7.5 12H9M15 12h1.5"/>',
+  monitor: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M6 13l3-3 3 2 5-5"/>',
+  wrench: '<path d="M14.7 6.3a4 4 0 0 0 5 5L22 14l-8 8-2.3-2.3a4 4 0 0 0-5-5L4 12l8-8z" transform="scale(.9) translate(1 1)"/>',
+  box: '<path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+  gift: '<rect x="3" y="8" width="18" height="13" rx="1.5"/><path d="M12 8v13M3 12h18"/><path d="M12 8S10.5 3 8 3a2.5 2.5 0 0 0 0 5zM12 8s1.5-5 4-5a2.5 2.5 0 0 1 0 5z"/>',
+  list: '<path d="M9 6h12M9 12h12M9 18h12"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/>',
+  cog: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.2.9z"/>',
+  download: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 21h16"/>',
+  play: '<circle cx="12" cy="12" r="10"/><path d="m10 8 6 4-6 4z"/>',
+  terminal: '<rect x="2" y="3" width="20" height="18" rx="2"/><path d="m6 9 3 3-3 3M12 15h6"/>',
+};
+const svg = (name, size, color) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="${color || "currentColor"}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${icons[name] || icons.flask}</svg>`;
+
+function bubbles(list) { return list.map(([x, y, s]) => `<div class="bubble" style="left:${x}%;top:${y}%;width:${s}vh;height:${s}vh"></div>`).join(""); }
+
+const designs = {
+  // Transparent horizontal logo for the store header
+  "logo-horizontal": () => `
+    <div style="display:flex;align-items:center;gap:4vh;height:100vh;padding:0 3vh">
+      <img class="mark" src="${MARK}" style="height:84vh" alt="">
+      <img src="${WORD}" style="height:78vh" alt="">
+    </div>`,
+
+  // Transparent square mark (favicon / avatar)
+  "mark-square": () => `
+    <div style="display:grid;place-items:center;height:100vh"><img class="mark" src="${MARK}" style="width:92vw" alt=""></div>`,
+
+  // Dark rounded app-icon style favicon
+  "icon-tile": () => `
+    <div class="scene" style="border-radius:22vh;display:grid;place-items:center;background:radial-gradient(circle at 50% 35%,#24133f,#07060b 70%);border:1.2vh solid #6a2be0;box-shadow:inset 0 0 6vh rgba(139,61,255,.5)">
+      <img class="mark" src="${MARK}" style="width:80vw;position:relative" alt=""></div>`,
+
+  // Homepage hero / header banner
+  hero: () => `
+    <div class="scene">
+      <div class="glow" style="width:70vh;height:70vh;right:6vw;top:-8vh;background:rgba(139,61,255,.45)"></div>
+      <div class="glow" style="width:40vh;height:40vh;left:-8vh;bottom:-16vh;background:rgba(122,44,240,.35)"></div>
+      ${bubbles([[60, 16, 2.2], [92, 70, 1.6], [57, 78, 1.2], [96, 22, 1]])}
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 6vw;gap:4vw">
+        <div style="max-width:52vw">
+          <div class="eyebrow" style="font-size:2.6vh;margin-bottom:3vh">Calebozo Labs</div>
+          <h1 style="font-family:var(--display);font-weight:900;font-size:10vh;line-height:1.02;letter-spacing:.02em"><span class="silver">FIVEM SCRIPTS.</span><br><span class="purple">BUILT DIFFERENT.</span></h1>
+          <p style="color:var(--muted);font-size:3.2vh;margin:3.5vh 0 4.5vh;max-width:44vw;line-height:1.5">${T || "Optimized, framework-ready resources for serious roleplay servers."}</p>
+          <div style="display:flex;gap:1.6vh;font-size:2.4vh;flex-wrap:wrap">
+            <span class="chip">${svg("bolt", "2.6vh")} 0.00ms Idle</span>
+            <span class="chip">${svg("grid", "2.6vh")} ESX · QBCore · QBox</span>
+            <span class="chip">${svg("key", "2.6vh")} Keymaster Delivery</span>
+          </div>
+        </div>
+        <img class="mark" src="${MARK}" style="height:74vh;position:relative" alt="">
+      </div>
+    </div>`,
+
+  // "Why us" feature strip for the homepage
+  features: () => {
+    const f = [["bolt", "Optimized", "0.00ms idle. Event-driven, no wasteful loops."], ["grid", "Framework Ready", "ESX, QBCore, QBox and ox_lib out of the box."], ["cog", "Configurable", "Open configs, locales and bridge files."], ["chat", "Real Support", "Fast Discord support and free lifetime updates."]];
+    return `<div class="scene" style="display:flex;flex-direction:column;justify-content:center;padding:0 5vw">
+      <div class="glow" style="width:60vh;height:60vh;left:40%;top:10%;background:rgba(139,61,255,.22)"></div>
+      <div style="position:relative;text-align:center;margin-bottom:7vh">
+        <div class="eyebrow" style="font-size:3vh">Why Calebozo Labs</div>
+        <h2 style="font-family:var(--display);font-weight:800;font-size:7vh;margin-top:2vh" class="silver">ENGINEERED, NOT THROWN TOGETHER.</h2>
+      </div>
+      <div style="position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:2.4vw">
+        ${f.map(([ic, t, s]) => `<div style="background:linear-gradient(180deg,#141022,#0b0912);border:1px solid rgba(166,107,255,.25);border-radius:2.6vh;padding:5vh 2.4vw">
+          <div style="width:10vh;height:10vh;border-radius:2.2vh;display:grid;place-items:center;background:rgba(139,61,255,.14);border:1px solid rgba(139,61,255,.4);color:var(--purple2);margin-bottom:3.5vh">${svg(ic, "5vh")}</div>
+          <div style="font-family:var(--display);font-weight:700;font-size:3.6vh;letter-spacing:.06em;margin-bottom:1.6vh">${t.toUpperCase()}</div>
+          <div style="color:var(--muted);font-size:3vh;line-height:1.45">${s}</div></div>`).join("")}
+      </div></div>`;
+  },
+
+  // Category banner: ?t=Title&s=Subtitle&i=icon
+  category: () => `
+    <div class="scene">
+      <div class="glow" style="width:80vh;height:80vh;right:-10vh;top:-30vh;background:rgba(139,61,255,.4)"></div>
+      <img src="${MARK}" alt="" style="position:absolute;right:-4vw;top:50%;transform:translateY(-50%);height:150vh;opacity:.07">
+      ${bubbles([[78, 20, 3], [88, 66, 2], [70, 74, 1.4]])}
+      <div style="position:absolute;inset:0;display:flex;align-items:center;gap:4vw;padding:0 6vw">
+        <div style="width:30vh;height:30vh;flex-shrink:0;border-radius:6vh;display:grid;place-items:center;background:linear-gradient(160deg,rgba(139,61,255,.3),rgba(139,61,255,.06));border:2px solid rgba(166,107,255,.5);color:#d6c2ff;box-shadow:0 0 8vh rgba(139,61,255,.35)">${svg(I, "15vh")}</div>
+        <div>
+          <div class="eyebrow" style="font-size:4.4vh;margin-bottom:2vh">Calebozo Labs</div>
+          <h1 style="font-family:var(--display);font-weight:900;font-size:17vh;line-height:1;letter-spacing:.03em" class="silver">${T.toUpperCase()}</h1>
+          <p style="color:var(--muted);font-size:6vh;margin-top:2.5vh">${S}</p>
+        </div>
+      </div>
+      <div class="rule" style="position:absolute;left:0;right:0;bottom:0"></div>
+    </div>`,
+
+  // Sale banner: ?t=Headline&s=Sub
+  sale: () => `
+    <div class="scene" style="background:linear-gradient(90deg,#1a0b33,#3d1679 50%,#1a0b33)">
+      <div class="glow" style="width:60vh;height:60vh;left:45%;top:-20vh;background:rgba(185,138,255,.35)"></div>
+      ${bubbles([[8, 25, 6], [14, 62, 3.5], [88, 20, 4.5], [93, 64, 7]])}
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:4vw">
+        <img class="mark" src="${MARK}" style="height:62vh" alt="">
+        <div style="text-align:center">
+          <div style="font-family:var(--display);font-weight:900;font-size:26vh;letter-spacing:.04em;line-height:1" class="silver">${T || "LAUNCH SALE"}</div>
+          <div style="font-family:var(--display);font-weight:700;font-size:11vh;letter-spacing:.3em;margin-top:4vh;color:#e6d6ff">${S || "20% OFF EVERYTHING"}</div>
+        </div>
+        <img class="mark" src="${MARK}" style="height:62vh;transform:scaleX(-1)" alt="">
+      </div>
+    </div>`,
+
+  // Package description section header: ?t=Features&i=list
+  section: () => `
+    <div class="scene" style="background:linear-gradient(90deg,#120d1e,#07060b 70%)">
+      <div class="glow" style="width:60vh;height:60vh;left:-10vh;top:-20vh;background:rgba(139,61,255,.4)"></div>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;gap:3vw;padding:0 4vw">
+        <div style="width:58vh;height:58vh;border-radius:14vh;display:grid;place-items:center;background:rgba(139,61,255,.18);border:2px solid rgba(166,107,255,.5);color:#d6c2ff;flex-shrink:0">${svg(I, "32vh")}</div>
+        <h2 style="font-family:var(--display);font-weight:800;font-size:38vh;letter-spacing:.12em" class="silver">${T.toUpperCase()}</h2>
+        <div class="rule" style="flex:1;opacity:.8"></div>
+      </div>
+      <div style="position:absolute;left:0;bottom:0;height:3px;width:100%;background:linear-gradient(90deg,var(--purple),transparent 60%)"></div>
+    </div>`,
+
+  // Package thumbnail 16:9: ?t=Script Name&s=Tagline
+  thumb: () => `
+    <div class="scene">
+      <div class="glow" style="width:80vh;height:80vh;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(139,61,255,.35)"></div>
+      ${bubbles([[12, 18, 3], [86, 22, 2.4], [80, 76, 3.6], [16, 74, 1.8]])}
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 8vw">
+        <img class="mark" src="${MARK}" style="height:30vh;margin-bottom:5vh" alt="">
+        <h1 style="font-family:var(--display);font-weight:900;font-size:10.5vh;line-height:1.05;letter-spacing:.03em" class="silver">${T.toUpperCase()}</h1>
+        ${S ? `<div style="font-family:var(--display);font-weight:700;font-size:4vh;letter-spacing:.35em;margin-top:3vh" class="purple">${S.toUpperCase()}</div>` : ""}
+      </div>
+      <div style="position:absolute;left:4vh;top:4vh;font-family:var(--display);font-size:2.6vh;letter-spacing:.3em;color:var(--silver);opacity:.7">CALEBOZO LABS</div>
+      <div style="position:absolute;right:4vh;bottom:4vh;display:flex;gap:1.2vh;font-size:2.4vh"><span class="chip">ESX</span><span class="chip">QBCORE</span><span class="chip">QBOX</span></div>
+    </div>`,
+
+  // Social share / Discord / splash: full logo on lab background
+  showcase: () => `
+    <div class="scene" style="display:grid;place-items:center">
+      <div class="glow" style="width:90vh;height:90vh;left:50%;top:45%;transform:translate(-50%,-50%);background:rgba(139,61,255,.3)"></div>
+      ${bubbles([[10, 20, 3], [88, 18, 2.4], [84, 78, 3.4], [14, 76, 2]])}
+      <img src="${FULL}" style="position:relative;height:${q.get("h") || 82}vh" alt="">
+    </div>`,
+};
+
+root.innerHTML = (designs[d] || designs.hero)();
+</script>
+</body>
+</html>

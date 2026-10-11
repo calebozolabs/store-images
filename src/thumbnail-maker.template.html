@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calebozo Thumbnail Maker</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #07060b; --panel: #120f1b; --line: rgba(167,139,250,.22); --fg: #ecebf2; --muted: #9a97a8; --accent: #8b3dff; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 Inter, system-ui, sans-serif; padding: 24px 16px 48px; }
+  .wrap { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 24px; align-items: start; }
+  h1 { font: 700 18px Orbitron, sans-serif; letter-spacing: .12em; margin: 0 0 4px; }
+  p.sub { color: var(--muted); margin: 0 0 20px; font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  label { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 6px; }
+  input[type=text], input[type=file] { width: 100%; padding: 10px 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; }
+  input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  button { padding: 12px; border-radius: 9px; border: 0; background: linear-gradient(180deg,#9a55ff,#7a2cf0); color: #fff; font: 700 12px Orbitron, sans-serif; letter-spacing: .14em; cursor: pointer; }
+  button.ghost { background: transparent; border: 1px solid var(--line); color: var(--fg); }
+  button:focus-visible { outline: 2px solid #c7a4ff; outline-offset: 2px; }
+  canvas { width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line); display: block; background: #000; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; }
+  @media (max-width: 860px) { .wrap { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>THUMBNAIL MAKER</h1>
+    <p class="sub">Package images for the Calebozo Labs store · 1280 × 720</p>
+    <div class="panel">
+      <div><label for="title">Script name</label><input type="text" id="title" value="Chem Lab"></div>
+      <div><label for="tagline">Tagline</label><input type="text" id="tagline" value="Advanced drug labs"></div>
+      <div><label for="chips">Framework tags (comma separated)</label><input type="text" id="chips" value="ESX, QBCore, QBox"></div>
+      <div><label for="badge">Corner badge (optional)</label><input type="text" id="badge" value="" placeholder="NEW · v2.0 · FREE"></div>
+      <div><label for="shot">Background screenshot (optional)</label><input type="file" id="shot" accept="image/*"></div>
+      <div><label for="dim">Screenshot darkness</label><input type="range" id="dim" min="30" max="90" value="65"></div>
+      <button type="button" id="download">Download PNG</button>
+      <button type="button" class="ghost" id="clear">Remove screenshot</button>
+    </div>
+  </div>
+  <div>
+    <canvas id="c" width="1280" height="720"></canvas>
+    <p class="hint">Upload this as the package image in Tebex. An in-game screenshot looks best behind the text.</p>
+  </div>
+</div>
+
+<script>
+const MARK_SRC = "data:image/png;base64,__MARK_B64__";
+const c = document.getElementById("c"), x = c.getContext("2d");
+const W = 1280, H = 720;
+const mark = new Image(); mark.src = MARK_SRC;
+let shot = null;
+const $ = (id) => document.getElementById(id);
+
+function bubble(cx, cy, r) {
+  const g = x.createRadialGradient(cx - r * .3, cy - r * .3, r * .1, cx, cy, r);
+  g.addColorStop(0, "#d9c2ff"); g.addColorStop(.55, "#8b3dff"); g.addColorStop(1, "#4a1a9a");
+  x.save(); x.shadowColor = "rgba(139,61,255,.8)"; x.shadowBlur = 18;
+  x.fillStyle = g; x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.fill(); x.restore();
+}
+
+function fitFont(text, weight, family, max, min, width) {
+  let s = max;
+  do { x.font = `${weight} ${s}px ${family}`; if (x.measureText(text).width <= width) break; s -= 2; } while (s > min);
+  return s;
+}
+
+function chip(text, rx, ry) {
+  x.font = "700 18px Inter, sans-serif";
+  const w = x.measureText(text).width + 32, h = 40;
+  x.fillStyle = "rgba(139,61,255,.18)"; x.strokeStyle = "rgba(166,107,255,.55)"; x.lineWidth = 1.5;
+  x.beginPath(); x.roundRect(rx - w, ry - h, w, h, 9); x.fill(); x.stroke();
+  x.fillStyle = "#ece2ff"; x.textBaseline = "middle"; x.fillText(text, rx - w + 16, ry - h / 2 + 1);
+  return w;
+}
+
+function draw() {
+  x.clearRect(0, 0, W, H);
+  x.fillStyle = "#07060b"; x.fillRect(0, 0, W, H);
+
+  if (shot) {
+    const s = Math.max(W / shot.width, H / shot.height);
+    x.drawImage(shot, (W - shot.width * s) / 2, (H - shot.height * s) / 2, shot.width * s, shot.height * s);
+    x.fillStyle = `rgba(7,6,11,${$("dim").value / 100})`; x.fillRect(0, 0, W, H);
+  }
+
+  // grid
+  x.strokeStyle = "rgba(167,139,250,.06)"; x.lineWidth = 1;
+  for (let i = 0; i <= W; i += 32) { x.beginPath(); x.moveTo(i + .5, 0); x.lineTo(i + .5, H); x.stroke(); }
+  for (let j = 0; j <= H; j += 32) { x.beginPath(); x.moveTo(0, j + .5); x.lineTo(W, j + .5); x.stroke(); }
+
+  // glow
+  const g = x.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, 420);
+  g.addColorStop(0, "rgba(139,61,255,.45)"); g.addColorStop(1, "rgba(139,61,255,0)");
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+
+  bubble(160, 140, 11); bubble(1110, 170, 9); bubble(1040, 560, 13); bubble(210, 540, 7);
+
+  // mark
+  if (mark.complete) {
+    const mh = 200, mw = mh * mark.width / mark.height;
+    x.save(); x.shadowColor = "rgba(139,61,255,.7)"; x.shadowBlur = 40;
+    x.drawImage(mark, (W - mw) / 2, 120, mw, mh); x.restore();
+  }
+
+  // title
+  const title = $("title").value.toUpperCase() || "SCRIPT NAME";
+  const ts = fitFont(title, 900, "Orbitron", 84, 36, W - 160);
+  x.font = `900 ${ts}px Orbitron, sans-serif`; x.textAlign = "center"; x.textBaseline = "alphabetic";
+  const tg = x.createLinearGradient(0, 430 - ts, 0, 440);
+  tg.addColorStop(0, "#ffffff"); tg.addColorStop(.5, "#dcdde3"); tg.addColorStop(1, "#8e909c");
+  x.fillStyle = tg; x.shadowColor = "rgba(0,0,0,.6)"; x.shadowBlur = 12;
+  x.fillText(title, W / 2, 440); x.shadowBlur = 0;
+
+  // tagline
+  const tag = $("tagline").value.toUpperCase();
+  if (tag) {
+    x.font = "700 26px Orbitron, sans-serif";
+    if ("letterSpacing" in x) x.letterSpacing = "8px";
+    const pg = x.createLinearGradient(0, 470, 0, 500);
+    pg.addColorStop(0, "#d2b3ff"); pg.addColorStop(1, "#8b3dff");
+    x.fillStyle = pg; x.fillText(tag, W / 2, 500);
+    if ("letterSpacing" in x) x.letterSpacing = "0px";
+  }
+
+  // brand corner
+  x.textAlign = "left"; x.font = "700 18px Orbitron, sans-serif";
+  if ("letterSpacing" in x) x.letterSpacing = "6px";
+  x.fillStyle = "rgba(201,202,210,.75)"; x.textBaseline = "top"; x.fillText("CALEBOZO LABS", 36, 36);
+  if ("letterSpacing" in x) x.letterSpacing = "0px";
+
+  // badge
+  const badge = $("badge").value.trim().toUpperCase();
+  if (badge) {
+    x.font = "900 20px Orbitron, sans-serif"; const bw = x.measureText(badge).width + 36;
+    x.fillStyle = "#8b3dff"; x.shadowColor = "rgba(139,61,255,.8)"; x.shadowBlur = 20;
+    x.beginPath(); x.roundRect(W - 36 - bw, 30, bw, 44, 10); x.fill(); x.shadowBlur = 0;
+    x.fillStyle = "#fff"; x.textBaseline = "middle"; x.fillText(badge, W - 36 - bw + 18, 53);
+  }
+
+  // chips
+  let rx = W - 36;
+  $("chips").value.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean).reverse()
+    .forEach((t) => { rx -= chip(t, rx, H - 36) + 10; });
+}
+
+["title", "tagline", "chips", "badge", "dim"].forEach((id) => $(id).addEventListener("input", draw));
+$("shot").addEventListener("change", (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = new Image(); img.onload = () => { shot = img; draw(); }; img.src = URL.createObjectURL(f);
+});
+$("clear").addEventListener("click", () => { shot = null; $("shot").value = ""; draw(); });
+$("download").addEventListener("click", () => {
+  c.toBlob((b) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(b);
+    a.download = ($("title").value || "thumbnail").toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".png";
+    a.click();
+  }, "image/png");
+});
+mark.onload = draw;
+document.fonts.load("900 40px Orbitron").then(draw, draw);
+draw();
+</script>
+</body>
+</html>
